@@ -2,8 +2,8 @@ import discord
 from discord.ext import commands
 import requests
 
-token = YOUR_BOT_PREFIX_HERE
-prefix = YOUR_BOT_TOKEN_HERE
+token = 
+prefix = 
 
 client = commands.Bot(command_prefix= prefix)
 client.remove_command("help") #to remove the default boring help command
