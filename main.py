@@ -10,7 +10,7 @@ import asyncio
 import nacl
 
 # Load environment variables
-load_dotenv()
+load_dotenv('.gitignore/.env')
 
 # Bot configuration
 PREFIX = '~'
