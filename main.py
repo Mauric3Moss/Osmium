@@ -456,18 +456,8 @@ async def join(ctx):
     else:
         await ctx.send("You must be in a voice channel for me to join!")
         
-@bot.command(name='wb', aliases=['snipe','wayback','grab','history'])
-@is_admin()
-async def snipe(ctx):
-    """Admin command to see deleted messages"""
-    try:
-        contents, author, time = sniped_messages[ctx.channel.id]
-        await ctx.send(f"`{contents}`\n— {author.mention} at {time.strftime('%H:%M:%S')}")
-    except KeyError:
-        await ctx.send("There's nothing to grab")
         
-        
-@bot.command()
+@bot.command(name='news')
 async def news(ctx):
     """stay up to date with the latest bbc news headlines"""
     url = "https://www.bbc.com/news"
@@ -475,7 +465,7 @@ async def news(ctx):
     soup = BeautifulSoup(r.text, 'html.parser')
     headlines = soup.find_all('h3', limit=5)
 
-    embed = discord.Embed(
+    news_embed = discord.Embed(
         title="Top BBC Headlines",
         description="Here are the latest news stories:",
         color=0x2a3ffa
@@ -484,10 +474,54 @@ async def news(ctx):
     for i, headline in enumerate(headlines, start=1):
         text = headline.get_text(strip=True)
         if text:
-            embed.add_field(name=f"{i}.", value=text, inline=False)
+            news_embed.add_field(name=f"{i}.", value=text, inline=False)
 
-    embed.set_footer(text=f"Powered by BBC News\nRequested by {ctx.author}",icon_url=ctx.author.display_avatar.url)
-    await ctx.send(embed=embed)
+    news_embed.set_footer(text=f"Powered by BBC News\nRequested by {ctx.author}",icon_url=ctx.author.display_avatar.url)
+    #await ctx.send(embed=news_embed)
+    await ctx.send("This command is under construction")
+    
+
+@bot.command(name='quote', aliases=['q'])
+async def quote(ctx):
+    """Get a random movie quote from the best movies of the 80s-2000nds"""
+    quotes = ["I'm back!\n~Arnie Schwarzenegger, Terminator",
+              "Life goes by fast. if you don't stop and look around once in a while, you might miss it\n~Matthew Broderick, Ferris Bueller's Day Off",
+              "E.T. Phone Homeeeeee\n~E.T., E.T.",
+              ""
+              ]
+    await ctx.send("This command is under construction")
+    
+    
+@bot.command(name='mkrole',aliases=['mr'])
+@is_admin()
+async def create_role(ctx, name: str, color: str, permissions: int, parent_role: str = None):
+    """Admin command to create a new role"""
+    # Ensure the color is valid
+    if not color.startswith("#") or len(color) != 7:
+        await ctx.send("Invalid color format! Please provide a color in HEX format (e.g., #FF5733).")
+        return
+    
+    try:
+        # Convert hex color to an integer
+        color_int = int(color.lstrip('#'), 16)
+    except ValueError:
+        await ctx.send("Invalid hex color value. Please ensure you input a valid color code.")
+        return
+
+    # Check if the permissions integer is valid (should be within range)
+    if permissions < 0 or permissions > 2147483647:
+        await ctx.send("Invalid permissions integer. Please enter a valid integer within the range.")
+        return
+
+    # Create the role with the provided details
+    try:
+        guild = ctx.guild
+        permissions_obj = discord.Permissions(permissions)
+        role = await guild.create_role(name=name, color=discord.Color(color_int), permissions=permissions_obj)
+        
+        await ctx.send(f"Role **{role.name}** created with color {color} and permissions {permissions}.")
+    except Exception as e:
+        await ctx.send(f"An error occurred: {str(e)}")
 
 
 @bot.event
