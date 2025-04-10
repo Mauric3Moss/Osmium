@@ -456,7 +456,7 @@ async def join(ctx):
     else:
         await ctx.send("You must be in a voice channel for me to join!")
         
-@bot.command(name='wayback', aliases=['snipe','wb','grab','history'])
+@bot.command(name='wb', aliases=['snipe','wayback','grab','history'])
 @is_admin()
 async def snipe(ctx):
     """Admin command to see deleted messages"""
