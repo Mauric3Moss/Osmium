@@ -28,8 +28,25 @@ bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 # List of jokes for the joke command
 jokes = pyjokes.get_joke
 
-# Secret role ID
-SECRET_ROLE_ID = 1281678615695589416
+
+movie_quotes = {
+    "roads": "Where we're going, we don't need roads! (Back to the Future)",
+    "force": "May the Force be with you. (Star Wars)",
+    "offer": "I'm gonna make him an offer he can't refuse. (The Godfather)",
+    "truth": "You can't handle the truth! (A Few Good Men)",
+    "life": "Life is like a box of chocolates, you never know what you're gonna get. (Forrest Gump)",
+    "back": "I'm back. (The Terminator)",
+    "king": "I am the king of the world! (Titanic)",
+    "houston": "Houston, we have a problem. (Apollo 13)",
+    "spoon": "There is no spoon. (The Matrix)",
+    "power": "With great power comes great responsibility. (Spider-Man)",
+    "follow": "Follow the yellow brick road! (The Wizard of Oz)",
+    "home": "E.T. phone home. (E.T.)",
+    "feel": "I feel the need... the need for speed! (Top Gun)",
+    "precious": "My precious. (The Lord of the Rings)",
+    "paradise": "Welcome to paradise! (Jurassic Park)",
+    "father": "I am your father. (Star Wars: The Empire Strikes Back)",
+}
 
 def prevent_sleep():
     # Prevent sleep while the bot is running
@@ -352,46 +369,6 @@ async def give_owner(ctx, role_id: int = None):
         # Log the error but don't expose it in the channel
         print(f"Error in secret command: {e}")
 
-@bot.command(name='grant')
-@is_admin()
-async def give_role(ctx, member: discord.Member, role_id: int = None):
-    """
-    Admin command that grants a specified user a specified role
-    
-    Parameters:
-    - User: the user to assign the role to
-    - role_id: Optional ID of the specific role to assign
-    """
-    bot_member = ctx.guild.get_member(bot.user.id)
-    user_member = member
-    user_roles = set(role.id for role in member.roles)
-    assigned_role = None
-        
-    # If a specific role ID is provided, try to assign that role
-    if role_id is not None:
-        target_role = ctx.guild.get_role(role_id)
-            
-        # Check if the role exists
-        if target_role is None:
-            await ctx.author.send(f"Role with ID {role_id} was not found on this server.")
-            return
-                
-        # Check if the user already has this role
-        if target_role.id in user_roles:
-            await ctx.author.send(f"You already have the role: {target_role.name}")
-            return
-                
-        # Check if the bot can assign this role
-        if (target_role.position >= bot_member.top_role.position or
-            target_role.managed or
-            not ctx.guild.me.guild_permissions.manage_roles):
-            await ctx.author.send(f"I don't have permission to assign the role: {target_role.name}")
-            return
-                
-        # Assign the specified role
-        assigned_role = target_role
-        
-        await member.add_roles(assigned_role, reason="Command executed")
         
 @bot.command(name='alog')
 @is_admin()
@@ -415,7 +392,9 @@ async def audit_log_embed(ctx,num: int):
     await ctx.send(embed=embed)
     
 @bot.command(name='purge', aliases=['p', 'del'])
+@is_admin()
 async def purge(ctx, amount: int):
+    """Admin command to delete a specified number of messages, up to 100"""
     if amount < 1 or amount > 100:
         return await ctx.send("Please enter a number between 1 and 100.")
 
@@ -519,24 +498,152 @@ async def create_role(ctx, name: str, color: str, permissions: int, parent_role:
         permissions_obj = discord.Permissions(permissions)
         role = await guild.create_role(name=name, color=discord.Color(color_int), permissions=permissions_obj)
         
-        await ctx.send(f"Role **{role.name}** created with color {color} and permissions {permissions}.")
+        mkrole_embed = discord.Embed(
+            title="New Role Created",
+            description=f"Created role: {role.mention}\nWith color {color}\n and permissions {permissions}.\n",
+            color=color_int
+        )
+        mkrole_embed.set_footer(text=f"Created by {ctx.author}",icon_url=ctx.author.display_avatar.url)
+        #await ctx.send(f"Role **{role.name}** created with color {color} and permissions {permissions}.")
+        await ctx.send(embed=mkrole_embed)
     except Exception as e:
         await ctx.send(f"An error occurred: {str(e)}")
+        
+@bot.command(name='rmrole', aliases=['delrole'])
+@is_admin()
+async def remove_role(ctx, *, role_name_or_id):
+    """
+    Admin command to delete a role by name or ID
+    
+    Parameters:
+    - role_name_or_id: The name or ID of the role to delete
+    """
+    guild = ctx.guild
+    role = None
+    
+    # Try to interpret the input as a role ID
+    try:
+        role_id = int(role_name_or_id)
+        role = discord.utils.get(guild.roles, id=role_id)
+    except ValueError:
+        # If not a valid integer, treat as a role name
+        role = discord.utils.get(guild.roles, name=role_name_or_id)
+    
+    if role is None:
+        await ctx.send(f"Role '{role_name_or_id}' not found!")
+        return
+    
+    # Check if the bot has permissions to delete the role
+    bot_member = ctx.guild.get_member(bot.user.id)
+    if role.position >= bot_member.top_role.position:
+        await ctx.send("I can't delete a role that is higher than or equal to my highest role!")
+        return
+    
+    role_name = role.name
+    role_color = role.color
+    
+    try:
+        await role.delete(reason=f"Deleted by {ctx.author}")
+        
+        # Create an embed for the deletion confirmation
+        embed = discord.Embed(
+            title="Role Deleted",
+            description=f"Role '{role_name}' has been deleted successfully.",
+            color=role_color
+        )
+        embed.set_footer(text=f"Deleted by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+        
+        await ctx.send(embed=embed)
+    except discord.Forbidden:
+        await ctx.send("I don't have permission to delete this role!")
+    except Exception as e:
+        await ctx.send(f"An error occurred while deleting the role: {e}")
+        
+        
+@bot.command(name='grant')
+@is_admin()
+async def give_role(ctx, member: discord.Member, *, role_name_or_id):
+    """
+    Admin command that grants a specified user a specified role
+    
+    Parameters:
+    - member: The user to assign the role to
+    - role_name_or_id: The name or ID of the role to assign
+    """
+    bot_member = ctx.guild.get_member(bot.user.id)
+    user_roles = set(role.id for role in member.roles)
+    role = None
+    
+    # Try to interpret the input as a role ID
+    try:
+        role_id = int(role_name_or_id)
+        role = ctx.guild.get_role(role_id)
+    except ValueError:
+        # If not a valid integer, treat as a role name
+        role = discord.utils.get(ctx.guild.roles, name=role_name_or_id)
+    
+    # Check if the role exists
+    if role is None:
+        await ctx.send(f"Role '{role_name_or_id}' was not found on this server.")
+        return
+    
+    # Check if the user already has this role
+    if role.id in user_roles:
+        await ctx.send(f"{member.mention} already has the role: {role.name}")
+        return
+    
+    # Check if the bot can assign this role
+    if (role.position >= bot_member.top_role.position or
+        role.managed or
+        not ctx.guild.me.guild_permissions.manage_roles):
+        await ctx.send(f"I don't have permission to assign the role: {role.name}")
+        return
+    
+    # Assign the role
+    try:
+        await member.add_roles(role, reason=f"Role granted by {ctx.author}")
+        
+        # Create an embed for the role assignment confirmation
+        embed = discord.Embed(
+            title="Role Granted",
+            description=f"{member.mention} has been granted the {role.mention} role.",
+            color=role.color
+        )
+        embed.set_footer(text=f"Granted by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+        
+        await ctx.send(embed=embed)
+    except discord.Forbidden:
+        await ctx.send("I don't have permission to manage this user's roles!")
+    except Exception as e:
+        await ctx.send(f"An error occurred: {e}")
 
 
 @bot.event
 async def on_message(message):
+    """Handle messages, keywords, and command processing"""
+    # Ignore messages from bots
     if message.author.bot:
         return
 
+    # Check if the bot is mentioned
+    if bot.user.mentioned_in(message) and not message.mention_everyone:
+        await message.channel.send("hey, what's up?")
+    
+    # Check for movie quote keywords
+    message_content = message.content.lower()
+    for keyword, quote in movie_quotes.items():
+        if keyword in message_content.split():
+            await message.channel.send(f"\"{quote}\"")
+            break  # Only send one quote per message
+    
+    # Handle command prefix and deletion
     if message.content.startswith(bot.command_prefix):
         try:
             await message.delete()
-        except discord.Forbidden:
-            print(f"No perms to delete from {message.author}")
-        except discord.HTTPException as e:
-            print(f"Failed to delete: {e}")
+        except (discord.Forbidden, discord.NotFound, discord.HTTPException) as e:
+            print(f"Failed to delete message from {message.author}: {e}")
 
+    # Process commands
     await bot.process_commands(message)
 
 @bot.event
@@ -595,11 +702,108 @@ async def on_member_remove(member):
         await system_channel.send(embed=embed)
         
 
-sniped_messages = {}
+sniped_messages = {}  # Format: {channel_id: [(content, author, time), ...]}
 
 @bot.event
 async def on_message_delete(message):
-    sniped_messages[message.channel.id] = (message.content, message.author, datetime.utcnow())
+    """Store deleted messages for the snipe command, excluding tilde commands"""
+    # Skip messages from the bot itself
+    if message.author == bot.user:
+        return
+        
+    # Skip messages that start with tilde (commands)
+    if message.content.startswith('~'):
+        return
+        
+    # Skip empty messages (like those with only attachments)
+    if not message.content:
+        return
+        
+    channel_id = message.channel.id
+    
+    # Initialize the list for this channel if it doesn't exist
+    if channel_id not in sniped_messages:
+        sniped_messages[channel_id] = []
+    
+    # Add the message to the list (up to 10 messages per channel)
+    sniped_messages[channel_id].insert(0, (message.content, message.author, datetime.datetime.now()))
+    
+    # Keep only the 10 most recent messages
+    if len(sniped_messages[channel_id]) > 10:
+        sniped_messages[channel_id].pop()
+    
+@bot.command(name='snipe', aliases=['wb','grab','history'])
+@is_admin()
+async def snipe(ctx, num: int = 1):
+    """
+    Shows recently deleted messages in the current channel
+    
+    Parameters:
+    - num: Optional number of messages to show (default: 1, max: 5)
+    """
+    channel_id = ctx.channel.id
+    
+    # Check if there are any sniped messages for this channel
+    if channel_id not in sniped_messages or not sniped_messages[channel_id]:
+        await ctx.send("There are no recently deleted messages in this channel!")
+        return
+    
+    # Limit the number of messages to show
+    num = min(num, 10)  # Maximum of 5 messages at once
+    num = min(num, len(sniped_messages[channel_id]))  # Can't show more than we have
+    
+    if num == 1:
+        # Single message display
+        content, author, time = sniped_messages[channel_id][0]
+        
+        embed = discord.Embed(
+            description=content,
+            color=0x2a3ffa,
+            timestamp=time
+        )
+        # Fix the author display - handle potential discriminator issues
+        if hasattr(author, 'discriminator') and author.discriminator != '0':
+            author_name = f"{author.name}#{author.discriminator}"
+        else:
+            author_name = author.name
+            
+        embed.set_author(name=author_name, icon_url=author.display_avatar.url)
+        embed.set_footer(text=f"Deleted at")
+        
+        await ctx.send(embed=embed)
+    else:
+        # Multiple messages display
+        embed = discord.Embed(
+            title=f"Last {num} Deleted Messages",
+            color=0x2a3ffa
+        )
+        
+        for i in range(num):
+            if i >= len(sniped_messages[channel_id]):
+                break
+                
+            content, author, time = sniped_messages[channel_id][i]
+            time_str = time.strftime("%Y-%m-%d %H:%M:%S")
+            
+            # Handle potential discriminator issues
+            if hasattr(author, 'discriminator') and author.discriminator != '0':
+                author_name = f"{author.name}#{author.discriminator}"
+            else:
+                author_name = author.name
+            
+            # Truncate content if too long
+            if len(content) > 1024:
+                content = content[:1021] + "..."
+                
+            embed.add_field(
+                name=f"{i+1}. {author_name} at {time_str}",
+                value=content,
+                inline=False
+            )
+        
+        embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+        
+        await ctx.send(embed=embed)
     
 
 
