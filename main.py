@@ -8,6 +8,8 @@ import pyjokes
 import ctypes
 import asyncio
 import nacl
+import requests
+from bs4 import BeautifulSoup
 
 # Load environment variables
 load_dotenv()
@@ -453,6 +455,39 @@ async def join(ctx):
             await ctx.send(f"Could not join the voice channel: {e}")
     else:
         await ctx.send("You must be in a voice channel for me to join!")
+        
+@bot.command(name='wayback', aliases=['snipe','wb','grab','history'])
+@is_admin()
+async def snipe(ctx):
+    """Admin command to see deleted messages"""
+    try:
+        contents, author, time = sniped_messages[ctx.channel.id]
+        await ctx.send(f"`{contents}`\n— {author.mention} at {time.strftime('%H:%M:%S')}")
+    except KeyError:
+        await ctx.send("There's nothing to grab")
+        
+        
+@bot.command()
+async def news(ctx):
+    """stay up to date with the latest bbc news headlines"""
+    url = "https://www.bbc.com/news"
+    r = requests.get(url)
+    soup = BeautifulSoup(r.text, 'html.parser')
+    headlines = soup.find_all('h3', limit=5)
+
+    embed = discord.Embed(
+        title="Top BBC Headlines",
+        description="Here are the latest news stories:",
+        color=0x2a3ffa
+    )
+
+    for i, headline in enumerate(headlines, start=1):
+        text = headline.get_text(strip=True)
+        if text:
+            embed.add_field(name=f"{i}.", value=text, inline=False)
+
+    embed.set_footer(text=f"Powered by BBC News\nRequested by {ctx.author}",icon_url=ctx.author.display_avatar.url)
+    await ctx.send(embed=embed)
 
 
 @bot.event
@@ -487,6 +522,52 @@ async def audit_log_monitor():
                 print(f"Audit log check failed in {guild.name}: {e}")
         
         await asyncio.sleep(30)
+
+@bot.event
+async def on_member_join(member):
+    role_name = "Right Person"  # Change this to your desired role name
+    guild = member.guild
+    role = discord.utils.get(guild.roles, name=role_name)
+
+    if role:
+        await member.add_roles(role)
+        msg = f"Assigned **{role.name}** to {member.mention}"
+    else:
+        msg = f"Role '**{role_name}**' not found for {member.mention}"
+
+    if guild.system_channel:
+        await guild.system_channel.send(msg)
+        
+@bot.event
+async def on_member_remove(member):
+    guild = member.guild
+    system_channel = guild.system_channel
+
+    if system_channel:
+        # Format roles (excluding @everyone)
+        roles = [role.mention for role in member.roles if role != guild.default_role]
+        roles_text = ", ".join(roles) if roles else "*No roles*"
+
+        embed = discord.Embed(
+            title=f"{member} has Left",
+            description=f"{member.mention} has left the server.",
+            color=0x2a3ffa
+        )
+        embed.set_thumbnail(url=member.avatar.url if member.avatar else member.default_avatar.url)
+        embed.add_field(name="Username", value=f"{member.name}#{member.discriminator}", inline=True)
+        embed.add_field(name="Roles", value=roles_text, inline=False)
+        embed.set_footer(text=f"User ID: {member.id}")
+
+        await system_channel.send(embed=embed)
+        
+
+sniped_messages = {}
+
+@bot.event
+async def on_message_delete(message):
+    sniped_messages[message.channel.id] = (message.content, message.author, datetime.utcnow())
+    
+
 
 
 @bot.event
