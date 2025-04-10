@@ -248,7 +248,7 @@ async def joke(ctx):
     joke_embed = discord.Embed(
         title="Here's a joke for you!",
         description=random_joke,
-        color=discord.Color.blue(),
+        color=0x2a3ffa,
     )
     joke_embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
     
