@@ -1,0 +1,54 @@
+[2025-04-13 22:05:43] Command: ping
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~ping
+==================================================
+[2025-04-13 22:06:08] Command: joke
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  An Server (ID: 1283262402749530222)
+  Channel: an-general (ID: 1283262403185873022)
+  Content: ~joke
+==================================================
+[2025-04-13 22:07:09] Command: sys
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~sys OK SO GUYS IT LOGS YOUR COMMANDS NOW, Be careful what you type in these becuase it is watching...
+==================================================
+[2025-04-13 22:07:36] Command: quote
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~q
+==================================================
+[2025-04-13 22:11:00] Command: ping
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~ping
+==================================================
+[2025-04-13 22:11:20] Command: ping
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~ping
+==================================================
+[2025-04-13 22:11:26] Command: quote
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~q
+==================================================
+[2025-04-13 22:11:37] Command: ping
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~ping
+==================================================
+[2025-04-13 22:14:02] Command: ping
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~ping
+==================================================

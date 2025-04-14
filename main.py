@@ -10,13 +10,18 @@ import asyncio
 import nacl
 import requests
 from bs4 import BeautifulSoup
+import aiohttp
+
+import Superfight as sf
+
+
 
 # Load environment variables
 load_dotenv()
 
 # Bot configuration
 PREFIX = '~'
-intents = discord.Intents.default()
+intents = discord.Intents.all()
 intents.members = True  # Enable member intents to access member information
 intents.message_content = True  # Enable message content intent
 intents.guilds = True  # Make sure guild intent is enabled
@@ -25,9 +30,53 @@ intents.messages = True  # Make sure messages intent is enabled
 # Initialize bot with prefix and intents
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
 
+
+
+
 # List of jokes for the joke command
 jokes = pyjokes.get_joke
 
+def setup_command_logging(bot):
+    @bot.event
+    async def on_command(ctx):
+        await log_command(ctx)
+    
+    
+setup_command_logging(bot)
+
+# This function will be called whenever a command is invoked
+async def log_command(ctx):
+    """Log command usage to a daily log file."""
+    # Format the current date for the filename
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    filename = f"logs_{today}.txt"
+    
+    # Get command execution time
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Extract command information
+    author = f"{ctx.author} (ID: {ctx.author.id})"
+    server = f"{ctx.guild} (ID: {ctx.guild.id})" if ctx.guild else "Direct Message"
+    channel = f"{ctx.channel} (ID: {ctx.channel.id})"
+    command = ctx.command.qualified_name
+    content = ctx.message.content
+    
+    # Format the log entry
+    log_entry = (
+        f"[{timestamp}] Command: {command}\n"
+        f"  Author:  {author}\n"
+        f"  Server:  {server}\n"
+        f"  Channel: {channel}\n"
+        f"  Content: {content}\n"
+        f"{'=' * 50}\n"
+    )
+    
+    # Create logs directory if it doesn't exist
+    os.makedirs('logs', exist_ok=True)
+    
+    # Write to the log file
+    with open(os.path.join('logs', filename), 'a', encoding='utf-8') as f:
+        f.write(log_entry)
 
 movie_quotes = {
     "roads": "Where we're going, we don't need roads! (Back to the Future)",
@@ -129,6 +178,44 @@ async def process_commands(self, message):
 
 # Apply the custom command processor
 bot.process_commands = process_commands.__get__(bot, commands.Bot)
+
+
+async def on_command(ctx):
+    """Log command usage to a daily log file."""
+    # Format the current date for the filename
+    today = datetime.datetime.now().strftime('%Y-%m-%d')
+    filename = f"logs_{today}.txt"
+    
+    # Get command execution time
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Extract command information
+    author = f"{ctx.author} (ID: {ctx.author.id})"
+    server = f"{ctx.guild} (ID: {ctx.guild.id})" if ctx.guild else "Direct Message"
+    channel = f"{ctx.channel} (ID: {ctx.channel.id})"
+    command = ctx.command.qualified_name
+    content = ctx.message.content
+    
+    # Format the log entry
+    log_entry = (
+        f"[{timestamp}] Command: {command}\n"
+        f"  Author:  {author}\n"
+        f"  Server:  {server}\n"
+        f"  Channel: {channel}\n"
+        f"  Content: {content}\n"
+        f"{'=' * 50}\n"
+    )
+    
+    # Create logs directory if it doesn't exist
+    os.makedirs('logs', exist_ok=True)
+    
+    # Write to the log file
+    with open(os.path.join('logs', filename), 'a', encoding='utf-8') as f:
+        f.write(log_entry)
+
+# Register the event listener
+def setup_command_logging(bot):
+    bot.add_listener(on_command, 'on_command')
 
 @bot.command(name='kick')
 @is_admin()
@@ -391,6 +478,145 @@ async def audit_log_embed(ctx,num: int):
 
     await ctx.send(embed=embed)
     
+@bot.command(name='ping', aliases=['latency'])
+async def ping(ctx):
+    """
+    Check the bot's latency to Discord.
+    Shows both websocket heartbeat and message round-trip time.
+    """
+    # Start timing
+    start_time = discord.utils.utcnow()
+    
+    # Send initial message
+    message = await ctx.send("Pinging...")
+    
+    # Calculate end time and round-trip duration
+    end_time = discord.utils.utcnow()
+    round_trip = (end_time - start_time).total_seconds() * 1000
+    
+    # Get websocket latency
+    ws_latency = bot.latency * 1000
+    
+    # Create an embed with ping information
+    embed = discord.Embed(
+        title="Pong!",
+        color=discord.Color.from_str("#2a3ffa")
+    )
+    
+    # Add latency fields
+    embed.add_field(
+        name="Bot Latency",
+        value=f"{round_trip:.2f} ms",
+        inline=True
+    )
+    embed.add_field(
+        name="WebSocket Latency",
+        value=f"{ws_latency:.2f} ms",
+        inline=True
+    )
+    
+    # Color code based on latency
+    if ws_latency < 100:
+        embed.color = discord.Color.green()  # Good latency
+    elif ws_latency < 300:
+        embed.color = discord.Color.gold()   # OK latency
+    else:
+        embed.color = discord.Color.red()    # Poor latency
+    
+    embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+    
+    # Edit the original message with the embed
+    await message.edit(content=None, embed=embed)
+    
+    
+    
+@bot.command(name='speedrun', aliases=['srl','srlookup'])
+async def speedrun_top(ctx, *, args: str):
+    parts = args.split("|")
+    game_name = parts[0].strip()
+    category_name = parts[1].strip() if len(parts) > 1 else None
+
+    async with aiohttp.ClientSession() as session:
+        # Step 1: Search game
+        search_url = f"https://www.speedrun.com/api/v1/games?name={game_name}"
+        async with session.get(search_url) as resp:
+            data = await resp.json()
+            if not data["data"]:
+                await ctx.send("No game found with that name.")
+                return
+            game = data["data"][0]
+            game_id = game["id"]
+
+        # Step 2: Get categories
+        cat_url = f"https://www.speedrun.com/api/v1/games/{game_id}/categories"
+        async with session.get(cat_url) as resp:
+            cat_data = await resp.json()
+            categories = cat_data["data"]
+
+        preferred_categories = ["Any%", "Early Access Any%", "100%"]
+
+        selected_category = None
+
+        if category_name:
+            for cat in categories:
+                if cat["name"].lower() == category_name.lower():
+                    selected_category = cat
+                    break
+        else:
+            for name in preferred_categories:
+                for cat in categories:
+                    if cat["name"].lower() == name.lower():
+                        selected_category = cat
+                        break
+                if selected_category:
+                    break
+
+        if not selected_category:
+            selected_category = categories[0]
+
+        category_id = selected_category["id"]
+
+        # Step 3: Get leaderboard
+        lb_url = f"https://www.speedrun.com/api/v1/leaderboards/{game_id}/category/{category_id}?embed=players"
+        async with session.get(lb_url) as resp:
+            lb_data = await resp.json()
+            if "data" not in lb_data or not lb_data["data"]["runs"]:
+                await ctx.send(f"No leaderboard data found for **{selected_category['name']}**.")
+                return
+
+            runs = lb_data["data"]["runs"][:5]
+            players_embedded = {
+                p["id"]: p for p in lb_data["data"]["players"]["data"] if p["rel"] == "user"
+            }
+
+            embed = discord.Embed(
+                title=f"🏁 Top 5 {game['names']['international']} – {selected_category['name']}",
+                color=0x2a3ffa
+            )
+
+            for i, entry in enumerate(runs, 1):
+                run = entry["run"]
+                time = run["times"]["primary_t"]
+                minutes, seconds = divmod(int(time), 60)
+                player_name = "Unknown"
+
+                for player in run["players"]:
+                    if player["rel"] == "user":
+                        player_id = player["id"]
+                        user_data = players_embedded.get(player_id)
+                        player_name = user_data["names"]["international"] if user_data else "Unknown"
+                    elif player["rel"] == "guest":
+                        player_name = player.get("name", "Guest")
+
+                place_tag = "🥇 **World Record**" if i == 1 else f"#{i}"
+                embed.add_field(
+                    name=place_tag,
+                    value=f"**{player_name}** – {minutes}m {seconds}s",
+                    inline=False
+                )
+
+            await ctx.send(embed=embed)
+
 @bot.command(name='purge', aliases=['p', 'del'])
 @is_admin()
 async def purge(ctx, amount: int):
@@ -559,7 +785,21 @@ async def remove_role(ctx, *, role_name_or_id):
     except Exception as e:
         await ctx.send(f"An error occurred while deleting the role: {e}")
         
-        
+
+@bot.command(name='8ball', aliases=['8b','fortune'])
+async def eight_ball(ctx, *, question: str):
+    responses = [
+        "It is certain.", "Without a doubt.", "Yes – definitely.",
+        "Most likely.", "Outlook good.", "Yes.",
+        "Reply hazy, try again.", "Ask again later.",
+        "Better not tell you now.", "Cannot predict now.",
+        "Don't count on it.", "My reply is no.",
+        "Very doubtful."
+    ]
+    answer = random.choice(responses)
+    await ctx.send(f"**The Cosmos Has Spoken!** {question} has been answered!: {answer}")
+
+
 @bot.command(name='grant')
 @is_admin()
 async def give_role(ctx, member: discord.Member, *, role_name_or_id):
@@ -630,11 +870,11 @@ async def on_message(message):
         await message.channel.send("hey, what's up?")
     
     # Check for movie quote keywords
-    message_content = message.content.lower()
-    for keyword, quote in movie_quotes.items():
-        if keyword in message_content.split():
-            await message.channel.send(f"\"{quote}\"")
-            break  # Only send one quote per message
+    # message_content = message.content.lower()
+    # for keyword, quote in movie_quotes.items():
+    #     if keyword in message_content.split():
+    #         await message.channel.send(f"\"{quote}\"")
+    #         break  # Only send one quote per message
     
     # Handle command prefix and deletion
     if message.content.startswith(bot.command_prefix):
