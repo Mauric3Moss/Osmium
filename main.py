@@ -11,7 +11,7 @@ import nacl
 import requests
 from bs4 import BeautifulSoup
 import aiohttp
-
+from typing import Optional, Set
 import Superfight as sf
 
 
@@ -77,6 +77,49 @@ async def log_command(ctx):
     # Write to the log file
     with open(os.path.join('logs', filename), 'a', encoding='utf-8') as f:
         f.write(log_entry)
+
+
+# checked_files = set()
+
+# def ensure_in_gitignore(filename: str) -> None:
+#     """Ensure the specified filename is in .gitignore"""
+#     # If we've already checked this file, skip
+#     if filename in checked_files:
+#         return
+    
+#     # Path to .gitignore
+#     gitignore_path = '.gitignore'
+#     gitignore_entries = set()
+    
+#     # Read existing .gitignore if it exists
+#     if os.path.exists(gitignore_path):
+#         with open(gitignore_path, 'r', encoding='utf-8') as f:
+#             gitignore_entries = {line.strip() for line in f if line.strip() and not line.startswith('#')}
+    
+#     # Check if logs directory pattern is already there
+#     logs_pattern = 'logs/'
+#     logs_wildcard = 'logs/*'
+#     specific_file = os.path.join('logs', filename)
+    
+#     needs_update = False
+    
+#     # If none of the patterns cover our file, we need to update .gitignore
+#     if logs_pattern not in gitignore_entries and logs_wildcard not in gitignore_entries and specific_file not in gitignore_entries:
+#         with open(gitignore_path, 'a', encoding='utf-8') as f:
+#             # Add a newline first if the file isn't empty and doesn't end with a newline
+#             if os.path.exists(gitignore_path) and os.path.getsize(gitignore_path) > 0:
+#                 with open(gitignore_path, 'rb+') as f_check:
+#                     f_check.seek(-1, os.SEEK_END)
+#                     last_char = f_check.read(1)
+#                     if last_char != b'\n':
+#                         f.write('\n')
+            
+#             # Add logs directory to .gitignore
+#             f.write(f"{logs_pattern}\n")
+#             print(f"Added '{logs_pattern}' to .gitignore")
+    
+#     # Remember that we've checked this file
+#     checked_files.add(filename)
 
 movie_quotes = {
     "roads": "Where we're going, we don't need roads! (Back to the Future)",
