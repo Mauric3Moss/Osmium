@@ -1271,23 +1271,7 @@ async def enforce_locked_roles():
                         print(f"Error removing {role.name} from {member}: {e}")
 
 
-@tasks.loop(seconds=10)
-async def enforce_locked_roles():
-    for guild in bot.guilds:
-        guild_locks = locked_roles.get(guild.id, {})
-        for role_id, allowed_user_id in guild_locks.items():
-            role = guild.get_role(role_id)
-            if not role:
-                continue
-            for member in role.members:
-                if member.id != allowed_user_id:
-                    try:
-                        await member.remove_roles(role, reason="Role locked to a different user.")
-                        print(f"Removed {role.name} from {member}")
-                    except discord.Forbidden:
-                        print(f"Missing permissions to remove {role.name} from {member}")
-                    except Exception as e:
-                        print(f"Error removing {role.name}: {e}")
+
 
 @bot.event
 async def on_command_error(ctx, error):
