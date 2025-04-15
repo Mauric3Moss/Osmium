@@ -52,3 +52,87 @@
   Channel: 🤖bot-kommands (ID: 1359167740795027667)
   Content: ~ping
 ==================================================
+[2025-04-13 23:10:31] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Notch
+==================================================
+[2025-04-13 23:10:59] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Dracolich777
+==================================================
+[2025-04-13 23:11:19] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Calstar9000
+==================================================
+[2025-04-13 23:14:46] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Notch
+==================================================
+[2025-04-13 23:19:56] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Notch
+==================================================
+[2025-04-13 23:20:13] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Dracolich777
+==================================================
+[2025-04-13 23:27:56] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Notch
+==================================================
+[2025-04-13 23:28:47] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Notch
+==================================================
+[2025-04-13 23:29:26] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Notch
+==================================================
+[2025-04-13 23:32:31] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Notch
+==================================================
+[2025-04-13 23:32:42] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Dracolich777
+==================================================
+[2025-04-13 23:34:02] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Notch
+==================================================
+[2025-04-13 23:34:57] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Dracolich777
+==================================================
+[2025-04-13 23:35:43] Command: mc
+  Author:  dracolich777 (ID: 1096201210194837535)
+  Server:  The Right People of GW (ID: 1281677801384317014)
+  Channel: 🤖bot-kommands (ID: 1359167740795027667)
+  Content: ~mc Notch letsplaymc.me
+==================================================

@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 import datetime
 import os
 import random
@@ -12,7 +12,18 @@ import requests
 from bs4 import BeautifulSoup
 import aiohttp
 from typing import Optional, Set
+import mcstatus
+from mcstatus import JavaServer
 import Superfight as sf
+import sys
+import threading
+from tkinter import scrolledtext, messagebox
+import tkinter as tk
+from queue import Queue
+import PIL
+from PIL import Image, ImageTk
+from io import BytesIO
+import json
 
 
 
@@ -21,14 +32,19 @@ load_dotenv()
 
 # Bot configuration
 PREFIX = '~'
+COLOR = 0x2a3ffa
 intents = discord.Intents.all()
 intents.members = True  # Enable member intents to access member information
 intents.message_content = True  # Enable message content intent
 intents.guilds = True  # Make sure guild intent is enabled
 intents.messages = True  # Make sure messages intent is enabled
 
+
 # Initialize bot with prefix and intents
 bot = commands.Bot(command_prefix=PREFIX, intents=intents)
+
+
+reply_messages = ["Hey, what's up?", "Hello, Dave. How may I help you?", "Present!", "Yes?", "I'm always watching...", "WHO DARES SUMMON ME!?", "Hauskeeping, at your service"]
 
 
 
@@ -41,6 +57,17 @@ def setup_command_logging(bot):
     async def on_command(ctx):
         await log_command(ctx)
     
+ 
+def load_image_from_url(url, size=(40, 40)):
+    try:
+        response = requests.get(url)
+        image_data = response.content
+        img = Image.open(BytesIO(image_data)).resize(size, Image.ANTIALIAS)
+        return ImageTk.PhotoImage(img)
+    except Exception as e:
+        print(f"Image load error: {e}")
+        return None
+ 
     
 setup_command_logging(bot)
 
@@ -177,6 +204,7 @@ async def on_ready():
     """Event triggered when the bot is ready and connected to Discord."""
     print(f'{bot.user.name} has connected to Discord!')
     print(f'Bot is in {len(bot.guilds)} guilds:')
+    enforce_locked_roles.start()
     
     # Print detailed information about each guild the bot is in
     for i, guild in enumerate(bot.guilds):
@@ -194,7 +222,8 @@ async def on_message(message):
     
     # Check if the bot is mentioned in the message
     if bot.user.mentioned_in(message) and not message.mention_everyone:
-        await message.channel.send("hey, what's up?")
+        reply_message = random.choice(reply_messages)
+        await message.channel.send(reply_message)
     
     # Process commands after checking for mentions
     await bot.process_commands(message)
@@ -571,10 +600,11 @@ async def ping(ctx):
     # Edit the original message with the embed
     await message.edit(content=None, embed=embed)
     
-    
+
     
 @bot.command(name='speedrun', aliases=['srl','srlookup'])
 async def speedrun_top(ctx, *, args: str):
+    """Fetch speedrun leaderboards from speedrun.com"""
     parts = args.split("|")
     game_name = parts[0].strip()
     category_name = parts[1].strip() if len(parts) > 1 else None
@@ -901,6 +931,64 @@ async def give_role(ctx, member: discord.Member, *, role_name_or_id):
         await ctx.send(f"An error occurred: {e}")
 
 
+@bot.command()
+async def mc(ctx, username: str, server_ip: str = None):
+    """Fetch user data from a minecraft username. Alternatively, fetch a player's online status on a specified server ip"""
+    try:
+        # Get UUID from Mojang
+        uuid_res = requests.get(f"https://api.mojang.com/users/profiles/minecraft/{username}")
+        if uuid_res.status_code != 200:
+            return await ctx.send(f"Could not find player `{username}`.")
+        
+        uuid_data = uuid_res.json()
+        uuid = uuid_data["id"]
+        display_name = uuid_data["name"]
+
+        # Skin & Cape URLs
+        face_url = f"https://minotar.net/helm/{uuid}/100.png"
+        body_url = f"https://minotar.net/armor/body/{uuid}/100.png"
+        side_url = f"https://visage.surgeplay.com/side/100/{uuid}.png"
+        back_url = f"https://visage.surgeplay.com/back/100/{uuid}.png"
+        cape_url = f"https://crafatar.com/capes/{uuid}"
+
+        cape_status = "No cape"
+        if requests.get(cape_url).status_code == 200:
+            cape_status = f"[View Cape]({cape_url})"
+
+        # Online status if IP given
+        online_status = ""
+        if server_ip:
+            try:
+                server = JavaServer.lookup(server_ip)
+                status = server.status()
+                sample_names = [p.name for p in status.players.sample] if status.players.sample else []
+                if username in sample_names:
+                    online_status = f"`{username}` is online on `{server_ip}`!"
+                else:
+                    online_status = f"`{username}` is NOT online on `{server_ip}`."
+            except Exception as e:
+                online_status = f"Could not check server status:\n`{e}`"
+
+        # Create embed
+        mc_embed = discord.Embed(
+            title=f"Minecraft Info: {display_name}",
+            description=online_status or "Minecraft player data retrieved.",
+            color=COLOR
+        )
+        mc_embed.set_thumbnail(url=face_url)
+        mc_embed.add_field(name="UUID", value=uuid, inline=False)
+        mc_embed.add_field(name="Cape", value=cape_status, inline=False)
+        mc_embed.set_image(url=body_url)
+        mc_embed.set_footer(text=f"Requested by {ctx.author}", icon_url=ctx.author.display_avatar.url)
+
+        await ctx.send(embed=mc_embed)
+
+        # Additional skin views
+        
+
+    except Exception as e:
+        await ctx.send(f"Unexpected error:\n`{e}`")
+
 @bot.event
 async def on_message(message):
     """Handle messages, keywords, and command processing"""
@@ -910,7 +998,8 @@ async def on_message(message):
 
     # Check if the bot is mentioned
     if bot.user.mentioned_in(message) and not message.mention_everyone:
-        await message.channel.send("hey, what's up?")
+        reply_message = random.choice(reply_messages)
+        await message.channel.send(reply_message)
     
     # Check for movie quote keywords
     # message_content = message.content.lower()
@@ -1088,8 +1177,117 @@ async def snipe(ctx, num: int = 1):
         
         await ctx.send(embed=embed)
     
+DATA_FILE = "locked_roles.json"
+
+# Load saved locked roles from file
+def load_locked_roles():
+    if not os.path.exists(DATA_FILE) or os.path.getsize(DATA_FILE) == 0:
+        return {}
+    with open(DATA_FILE, "r") as f:
+        try:
+            return {
+                int(gid): {int(rid): int(uid) for rid, uid in roles.items()}
+                for gid, roles in json.load(f).items()
+            }
+        except json.JSONDecodeError:
+            print("locked_roles.json is corrupted or empty. Resetting.")
+            return {}
+
+# Save locked roles to file
+def save_locked_roles():
+    with open(DATA_FILE, "w") as f:
+        json.dump({str(gid): {str(rid): str(uid) for rid, uid in roles.items()} for gid, roles in locked_roles.items()}, f, indent=4)
+
+locked_roles = load_locked_roles()
+
+def is_admin():
+    async def predicate(ctx):
+        return ctx.author.guild_permissions.administrator
+    return commands.check(predicate)
 
 
+@bot.command(name="lockrole",aliases=['lr'])
+@is_admin()
+async def lockrole(ctx, role: discord.Role, user: discord.Member):
+    guild_locks = locked_roles.setdefault(ctx.guild.id, {})
+    guild_locks[role.id] = user.id
+    save_locked_roles()
+    await ctx.send(f"Locked role **{role.name}** to {user.mention}.")
+
+@bot.command(name="unlockrole",aliases=['ulr'])
+@is_admin()
+async def unlockrole(ctx, role: discord.Role):
+    guild_locks = locked_roles.get(ctx.guild.id, {})
+    if role.id in guild_locks:
+        del guild_locks[role.id]
+        if not guild_locks:
+            locked_roles.pop(ctx.guild.id)
+        save_locked_roles()
+        await ctx.send(f"Unlocked role **{role.name}**.")
+    else:
+        await ctx.send(f"Role **{role.name}** is not currently locked.")
+
+@bot.command(name="lockedroles",aliases=['lrs'])
+@is_admin()
+async def lockedroles_cmd(ctx):
+    guild_locks = locked_roles.get(ctx.guild.id, {})
+    if not guild_locks:
+        await ctx.send("No roles are currently locked in this server.")
+        return
+
+    embed = discord.Embed(title="Locked Roles", color=discord.Color.blue())
+    for role_id, user_id in guild_locks.items():
+        role = ctx.guild.get_role(role_id)
+        user = ctx.guild.get_member(user_id)
+        if role and user:
+            embed.add_field(name=role.name, value=f"Locked to {user.mention}", inline=False)
+    await ctx.send(embed=embed)
+
+@tasks.loop(seconds=10)
+async def enforce_locked_roles():
+    for guild in bot.guilds:
+        guild_locks = locked_roles.get(guild.id, {})
+        for role_id, allowed_user_id in guild_locks.items():
+            role = guild.get_role(role_id)
+            user = guild.get_member(allowed_user_id)
+            if role is None:
+                continue
+
+            # Grant role if user doesn't have it
+            if user and role not in user.roles:
+                try:
+                    await user.add_roles(role, reason="Role locked to this user.")
+                    print(f"Added {role.name} to {user}")
+                except Exception as e:
+                    print(f"Error granting role {role.name} to {user}: {e}")
+
+            # Remove role from others
+            for member in role.members:
+                if member.id != allowed_user_id:
+                    try:
+                        await member.remove_roles(role, reason="Role locked to another user.")
+                        print(f"Removed {role.name} from {member}")
+                    except Exception as e:
+                        print(f"Error removing {role.name} from {member}: {e}")
+
+
+@tasks.loop(seconds=10)
+async def enforce_locked_roles():
+    for guild in bot.guilds:
+        guild_locks = locked_roles.get(guild.id, {})
+        for role_id, allowed_user_id in guild_locks.items():
+            role = guild.get_role(role_id)
+            if not role:
+                continue
+            for member in role.members:
+                if member.id != allowed_user_id:
+                    try:
+                        await member.remove_roles(role, reason="Role locked to a different user.")
+                        print(f"Removed {role.name} from {member}")
+                    except discord.Forbidden:
+                        print(f"Missing permissions to remove {role.name} from {member}")
+                    except Exception as e:
+                        print(f"Error removing {role.name}: {e}")
 
 @bot.event
 async def on_command_error(ctx, error):
@@ -1107,12 +1305,14 @@ async def on_command_error(ctx, error):
 
 if __name__ == "__main__":
     bot_token = os.getenv('DISCORD_TOKEN')
-
-    if not bot_token:
-        print("Error: No Discord token found. Please add your token to the .env file.")
-    else:
+    prevent_sleep = lambda: ctypes.windll.kernel32.SetThreadExecutionState(
+        0x80000000 | 0x00000001 | 0x00000002
+    )
+    allow_sleep = lambda: ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
+    
+    try:
         prevent_sleep()
-        try:
-            bot.run(bot_token)
-        finally:
-            allow_sleep()
+        bot.run(bot_token)
+        # start_gui()
+    finally:
+        allow_sleep()
