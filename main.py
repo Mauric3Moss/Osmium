@@ -24,6 +24,7 @@ import PIL
 from PIL import Image, ImageTk
 from io import BytesIO
 import json
+from discord.utils import get
 
 
 
@@ -212,21 +213,25 @@ async def on_ready():
     
     await bot.change_presence(activity=discord.Activity(
         type=discord.ActivityType.playing, name="A Fun Game"))
+    
+    for guild in bot.guilds:
+        if guild.id in locked_channels:
+            for channel_id, user_ids in locked_channels[guild.id].items():
+                channel = guild.get_channel(channel_id)
+                if not channel:
+                    continue
 
-@bot.event
-async def on_message(message):
-    """Event triggered when any message is sent in a channel the bot can see."""
-    # Ignore messages from the bot itself to prevent potential loops
-    if message.author == bot.user:
-        return
-    
-    # Check if the bot is mentioned in the message
-    if bot.user.mentioned_in(message) and not message.mention_everyone:
-        reply_message = random.choice(reply_messages)
-        await message.channel.send(reply_message)
-    
-    # Process commands after checking for mentions
-    await bot.process_commands(message)
+                try:
+                    await channel.set_permissions(guild.default_role, send_messages=False)
+                    for uid in user_ids:
+                        user = guild.get_member(uid)
+                        if user:
+                            await channel.set_permissions(user, send_messages=True)
+                    print(f"Restored lock on #{channel.name} in {guild.name}")
+                except Exception as e:
+                    print(f"Failed to restore lock on channel {channel_id}: {e}")
+
+
 
 # Custom command invoker that deletes the command message
 async def process_commands(self, message):
@@ -858,9 +863,16 @@ async def remove_role(ctx, *, role_name_or_id):
     except Exception as e:
         await ctx.send(f"An error occurred while deleting the role: {e}")
         
+@bot.command(name='say',aliases=['s'], hidden=True)
+@is_admin()
+async def say(ctx,*,message=""):
+    await ctx.send(message)
+
+
 
 @bot.command(name='8ball', aliases=['8b','fortune'])
 async def eight_ball(ctx, *, question: str):
+    """Get a prediction"""
     responses = [
         "It is certain.", "Without a doubt.", "Yes – definitely.",
         "Most likely.", "Outlook good.", "Yes.",
@@ -1009,6 +1021,22 @@ async def on_message(message):
     #         break  # Only send one quote per message
     
     # Handle command prefix and deletion
+    
+    guild_id = message.guild.id if message.guild else None
+    channel_id = message.channel.id if message.channel else None
+    
+    if guild_id and guild_id in locked_channels:
+        locked = locked_channels[guild_id]
+        if channel_id in locked:
+            allowed_users = locked[channel_id]
+            if message.author.id not in allowed_users:
+                try:
+                    await message.delete()
+                    print(f"Deleted message from {message.author} in locked channel #{message.channel}")
+                except discord.Forbidden:
+                    print("Missing permissions to delete message.")
+                return  # Don't process commands from blocked users
+    
     if message.content.startswith(bot.command_prefix):
         try:
             await message.delete()
@@ -1073,6 +1101,93 @@ async def on_member_remove(member):
 
         await system_channel.send(embed=embed)
         
+
+
+class UserDashboardView(discord.ui.View):
+    def __init__(self, ctx, target: discord.Member, dashboard_channel: discord.TextChannel):
+        super().__init__(timeout=60)
+        self.ctx = ctx
+        self.target = target
+        self.dashboard_channel = dashboard_channel
+
+    async def disable_all(self, interaction: discord.Interaction, msg: str):
+        for item in self.children:
+            item.disabled = True
+        await interaction.response.edit_message(content=msg, view=self)
+        await asyncio.sleep(5)
+        await self.dashboard_channel.delete()
+
+    @discord.ui.button(label="Kick", style=discord.ButtonStyle.danger)
+    async def kick_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.guild_permissions.kick_members:
+            await self.target.kick(reason="Actioned from dashboard")
+            await self.disable_all(interaction, f"{self.target.mention} has been **kicked**.")
+        else:
+            await interaction.response.send_message("No permission to kick.", ephemeral=True)
+
+    @discord.ui.button(label="Ban", style=discord.ButtonStyle.danger)
+    async def ban_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.guild_permissions.ban_members:
+            await self.target.ban(reason="Actioned from dashboard")
+            await self.disable_all(interaction, f"{self.target.mention} has been **banned**.")
+        else:
+            await interaction.response.send_message("No permission to ban.", ephemeral=True)
+
+    @discord.ui.button(label="Timeout (1m)", style=discord.ButtonStyle.primary)
+    async def timeout_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        if self.ctx.author.guild_permissions.moderate_members:
+            await self.target.timeout(duration=60, reason="Actioned from dashboard")
+            await self.disable_all(interaction, f"{self.target.mention} has been **timed out for 1 minute**.")
+        else:
+            await interaction.response.send_message("No permission to timeout.", ephemeral=True)
+
+    @discord.ui.button(label="Cancel", style=discord.ButtonStyle.secondary)
+    async def cancel_button(self, interaction: discord.Interaction, button: discord.ui.Button):
+        await self.disable_all(interaction, "Dashboard closed.")
+
+
+@bot.command(name="dashboard")
+@commands.has_permissions(manage_channels=True)
+async def dashboard(ctx, member: discord.Member):
+    guild = ctx.guild
+    admin_category = get(guild.categories, name="Admin")
+
+    if not admin_category:
+        await ctx.send("Couldn't find a category called `Admin`.")
+        return
+
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(read_messages=False),
+        ctx.author: discord.PermissionOverwrite(read_messages=True, send_messages=True),
+        guild.me: discord.PermissionOverwrite(read_messages=True, send_messages=True)
+    }
+
+    dashboard_channel = await guild.create_text_channel(
+        name=f"{member.name}-dashboard",
+        overwrites=overwrites,
+        category=admin_category,
+        reason="Temporary dashboard"
+    )
+
+    view = UserDashboardView(ctx, member, dashboard_channel)
+    embed = discord.Embed(
+        title="User Dashboard",
+        description=f"Manage actions for {member.mention}",
+        color=COLOR
+    )
+    embed.set_thumbnail(url=member.display_avatar.url)
+    await dashboard_channel.send(embed=embed, view=view)
+
+    await asyncio.sleep(65)
+    try:
+        await dashboard_channel.delete()
+    except discord.NotFound:
+        pass
+
+
+
+
+
 
 sniped_messages = {}  # Format: {channel_id: [(content, author, time), ...]}
 
@@ -1270,6 +1385,80 @@ async def enforce_locked_roles():
                     except Exception as e:
                         print(f"Error removing {role.name} from {member}: {e}")
 
+
+CHANNEL_LOCKS_FILE = "locked_channels.json"
+
+
+def load_channel_locks():
+    if not os.path.exists(CHANNEL_LOCKS_FILE):
+        return {}
+    with open(CHANNEL_LOCKS_FILE, "r") as f:
+        return {int(gid): {int(cid): list(map(int, uids)) for cid, uids in channels.items()} for gid, channels in json.load(f).items()}
+
+def save_channel_locks():
+    with open(CHANNEL_LOCKS_FILE, "w") as f:
+        json.dump({str(gid): {str(cid): list(map(str, uids)) for cid, uids in channels.items()} for gid, channels in locked_channels.items()}, f, indent=4)
+
+locked_channels = load_channel_locks()
+
+def is_admin():
+    async def predicate(ctx):
+        return ctx.author.guild_permissions.administrator
+    return commands.check(predicate)
+
+
+@bot.command(name="lockchannel",aliases=['lock','lc','oppress'])
+@is_admin()
+async def lockchannel(ctx, *allowed: discord.Member):
+    """Admin command to only allow certain users to speak in a channel quickly."""
+    channel = ctx.channel
+    guild_id = ctx.guild.id
+    channel_id = channel.id
+
+    if not allowed:
+        await ctx.send("You must mention at least one user to allow.")
+        return
+
+    # Save allowed users
+    locked_channels.setdefault(guild_id, {})[channel_id] = [u.id for u in allowed]
+
+    # Update channel permissions
+    overwrite = discord.PermissionOverwrite(send_messages=False)
+    await channel.set_permissions(ctx.guild.default_role, overwrite=overwrite)
+
+    for user in allowed:
+        await channel.set_permissions(user, send_messages=True)
+
+    save_channel_locks()
+    await ctx.send(f"Locked {channel.mention}. Only {', '.join(u.mention for u in allowed)} can speak here.")
+
+
+@bot.command(name="unlockchannel",aliases=['ulc','unlock','unoppress'])
+@is_admin()
+async def unlockchannel(ctx):
+    """Unlocks a locked channel."""
+    channel = ctx.channel
+    guild_id = ctx.guild.id
+    channel_id = channel.id
+
+    if guild_id in locked_channels and channel_id in locked_channels[guild_id]:
+        allowed_ids = locked_channels[guild_id][channel_id]
+
+        # Reset permissions
+        await channel.set_permissions(ctx.guild.default_role, overwrite=None)
+        for uid in allowed_ids:
+            user = ctx.guild.get_member(uid)
+            if user:
+                await channel.set_permissions(user, overwrite=None)
+
+        del locked_channels[guild_id][channel_id]
+        if not locked_channels[guild_id]:
+            del locked_channels[guild_id]
+
+        save_channel_locks()
+        await ctx.send(f"Unlocked {channel.mention}. Everyone can talk now.")
+    else:
+        await ctx.send("This channel is not currently locked.")
 
 
 
