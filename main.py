@@ -24,6 +24,7 @@ import PIL
 from PIL import Image, ImageTk
 from io import BytesIO
 import json
+import subprocess as sp
 from discord.utils import get
 
 
@@ -1485,6 +1486,7 @@ if __name__ == "__main__":
     
     try:
         prevent_sleep()
+        sp.run(['python', 'Main.py'],cwd='C:/Users/dtmin/OneDrive/Desktop/Projects/GitRepos/Astatine')
         bot.run(bot_token)
         # start_gui()
     finally:
