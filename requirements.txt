@@ -1,2 +1,9 @@
 discord.py
+python-dotenv
+pyjokes
+pynacl
 requests
+beautifulsoup4
+aiohttp
+mcstatus
+pillow

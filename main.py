@@ -26,6 +26,7 @@ from io import BytesIO
 import json
 import subprocess as sp
 from discord.utils import get
+from GUI import start_gui_with_bot
 
 
 
@@ -1478,16 +1479,22 @@ async def on_command_error(ctx, error):
         await ctx.send(f"An error occurred: {error}")
 
 if __name__ == "__main__":
-    bot_token = os.getenv('DISCORD_TOKEN')
-    prevent_sleep = lambda: ctypes.windll.kernel32.SetThreadExecutionState(
-        0x80000000 | 0x00000001 | 0x00000002
-    )
-    allow_sleep = lambda: ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
     
-    try:
-        prevent_sleep()
-        sp.run(['python', 'Main.py'],cwd='C:/Users/dtmin/OneDrive/Desktop/Projects/GitRepos/Astatine')
-        bot.run(bot_token)
+    bot_token = os.getenv('DISCORD_TOKEN')
+
+    start_gui_with_bot(bot, bot_token)
+
+    # bot.run(bot_token)
+    # prevent_sleep = lambda: ctypes.windll.kernel32.SetThreadExecutionState(
+    #     0x80000000 | 0x00000001 | 0x00000002
+    # )
+    # allow_sleep = lambda: ctypes.windll.kernel32.SetThreadExecutionState(0x80000000)
+    
+    # try:
+    #     prevent_sleep()
+        # sp.run(['python', 'Main.py'],cwd='C:\\Projects\\Programming\\Personal\\Discord\\Osmium')
+    
+    
         # start_gui()
-    finally:
-        allow_sleep()
+    # finally:
+    #     allow_sleep()
